@@ -1,14 +1,23 @@
-import { z } from 'zod';
+import { email, z } from 'zod';
 import { baseProcedure, createTRPCRouter, protectedprocedure } from '../init';
 import prisma from '@/lib/db';
+import { create } from 'domain';
+import { inngest } from '@/inngest/client';
 export const appRouter = createTRPCRouter({
-  getusers: protectedprocedure.query(({ctx})=>{
-      return prisma.user.findMany({
-        where:{
-          id:ctx.auth.user.id,
-        }
-      });
+  getworkflow: protectedprocedure.query(({ctx})=>{
+      return prisma.workflow.findMany();
+  }),
+  createworkflow: protectedprocedure.mutation(async ()=>{
+        await inngest.send({
+            name: "test/hello.world",
+            data:{
+                email:"sojinkshibu@gmail.com" 
+            }           
+        })
+
+        return { success: true ,message:"job queded"};
   })
+
 
 
 });
