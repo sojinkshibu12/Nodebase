@@ -1,18 +1,18 @@
 "use client"
 
-import { z } from "zod"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import Link from "next/link"
-import { authClient } from "@/lib/auth-client"
-import { Button } from "@/components/ui/button"
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -20,9 +20,10 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {useRouter} from "next/navigation";
+import Image from "next/image";
 
 /* ------------------ Schema ------------------ */
 const loginSchema = z.object({
@@ -31,6 +32,7 @@ const loginSchema = z.object({
 })
 
 type LoginFormValues = z.infer<typeof loginSchema>
+
 
 /* ------------------ Component ------------------ */
 export default function Loginform() {
@@ -60,8 +62,10 @@ export default function Loginform() {
 });
   }
 
+  const isPernding = form.formState.isSubmitting;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40">
+    <div className="flex  items-center justify-center bg-muted/40">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
@@ -104,8 +108,16 @@ export default function Loginform() {
                 )}
               />
 
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" disabled={isPernding}>
                 Login
+              </Button>
+              <Button variant ="outline" type ="button" className="w-full" disabled={isPernding}>
+                <Image src="/google.svg" alt="Google Icon" width={20} height={20} className="mr-2" />
+                signIn with Google
+              </Button>
+              <Button variant ="outline"type="button" className="w-full" disabled={isPernding}>
+                <Image src="/github.svg" alt="GitHub Icon" width={20} height={20} className="mr-2" />
+                signIn with GitHub
               </Button>
             </form>
           </Form>

@@ -4,6 +4,7 @@ import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
+import Image from "next/image"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -69,9 +70,10 @@ export default function Signupform() {
 
 
   }
+  const isPernding = form.formState.isSubmitting;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40">
+    <div className="flex items-center justify-center bg-muted/40">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Create an Account</CardTitle>
@@ -128,9 +130,17 @@ export default function Signupform() {
                 )}
               />
 
-              <Button type="submit" className="w-full">
-                Login
+              <Button type="submit" className="w-full" disabled={isPernding}>
+                Signup
               </Button>
+                            <Button variant ="outline" type ="button" className="w-full" disabled={isPernding}>
+                              <Image src="/google.svg" alt="Google Icon" width={20} height={20} className="mr-2" />
+                              signUp with Google
+                            </Button>
+                            <Button variant ="outline"type="button" className="w-full" disabled={isPernding}>
+                              <Image src="/github.svg" alt="GitHub Icon" width={20} height={20} className="mr-2" />
+                              signUp with GitHub
+                            </Button>
             </form>
           </Form>
 
