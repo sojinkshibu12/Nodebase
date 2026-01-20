@@ -8,9 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "ingest:dev": "inngest-cli dev",
-    "dev:all":"mprocs"
+    "dev:all": "mprocs"
   },
   "dependencies": {
+    "@ai-sdk/deepseek": "^2.0.8",
+    "@ai-sdk/google": "^3.0.10",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
@@ -20,6 +22,7 @@
     "@trpc/client": "^11.8.1",
     "@trpc/server": "^11.8.1",
     "@trpc/tanstack-react-query": "^11.8.1",
+    "ai": "^6.0.42",
     "better-auth": "^1.4.15",
     "class-variance-authority": "^0.7.1",
     "client-only": "^0.0.1",

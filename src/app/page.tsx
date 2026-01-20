@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth-utils"
 import {LogoutButton} from "@/app/clientcomp/logoutbtn"
 import { caller } from "@/trpc/server";
 import {Createbgjobs} from "@/app/clientcomp/createbgjobs"
+import {TestAI} from "@/app/clientcomp/testaibtn"
 
 export default async function Home() {
 
@@ -17,6 +18,7 @@ const data = await caller.getworkflow();
         <h1 className="mb-4 text-2xl font-bold">Welcome {JSON.stringify(data)}</h1>
         <LogoutButton />
         <Createbgjobs />
+        <TestAI />
 
     </div>
   )

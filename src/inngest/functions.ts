@@ -1,20 +1,27 @@
 import prisma from "@/lib/db";
 import { inngest } from "./client";
+import { generateText } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createDeepSeek } from '@ai-sdk/deepseek';
 
-export const helloWorld = inngest.createFunction(
-  { id: "hello-world" },
-  { event: "test/hello.world" },
+const google = createGoogleGenerativeAI();
+
+const deepseek = createDeepSeek({
+  apiKey: process.env.DEEPSEEK_API_KEY ?? '',
+});
+
+
+export const testai = inngest.createFunction(
+  { id: "geimini-google" },
+  { event: "test/ai" },
   async ({ event, step }) => {
-    await step.sleep("fetching", "5s");
-    await step.sleep("transcribing", "5s");
-    await step.sleep("giving to ai", "5s");
-    await step.run("create workflow",()=>{
-        return prisma.workflow.create({
-            data:{
-                name: "backgroud-job-from-inngest",
-            }
-        })
-    })
-    
+    const{ text } = await generateText({
+      model: google('gemini-2.5-flash'),
+      system: "You are a helpful assistant that provides recipes.",
+      prompt: 'Write a vegetarian lasagna recipe for 4 people.',
+    });
+
+    return {text}
   },
 );
+
