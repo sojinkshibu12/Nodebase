@@ -1,157 +1,158 @@
-"use client"
-import { authClient } from "@/lib/auth-client"
-import { z } from "zod"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import Link from "next/link"
-import Image from "next/image"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import {useRouter} from "next/navigation";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
 /* ------------------ Schema ------------------ */
-const SignupSchema = z.object({
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmpassword: z.string().min(6, "Password is required"),
-})
-.refine((data)=> data.password === data.confirmpassword,{
-    message: "passwords do not match",
-    path :["confirmpassword"]
-})
+const signupSchema = z
+  .object({
+    email: z.string().email("Enter a valid email"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(6, "Confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
-type SignupFormValues = z.infer<typeof SignupSchema>
+type SignupFormValues = z.infer<typeof signupSchema>;
 
 /* ------------------ Component ------------------ */
-export default function Signupform() {
-    const router = useRouter();
-  const form = useForm<SignupFormValues>({
-    resolver: zodResolver(SignupSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-      confirmpassword:""
-    },
-  })
+export default function SignupForm() {
+  const router = useRouter();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<SignupFormValues>({
+    resolver: zodResolver(signupSchema),
+  });
 
   const onSubmit = async (data: SignupFormValues) => {
-
-
-    await authClient.signUp.email({
-        name :data.email,
-        email: data.email, // user email
-        password:data.password, // user password -> min 8 characters by default
-        callbackURL: "/" // A URL to redirect to after the user verifies their email (optional)
-    }, {
-        onSuccess: (ctx) => {
-            router.push('/');
+    await authClient.signUp.email(
+      {
+        name: data.email,
+        email: data.email,
+        password: data.password,
+        callbackURL: "/",
+      },
+      {
+        onSuccess: () => {
+          router.push("/");
         },
         onError: (ctx) => {
-            // display the error message
-            alert(ctx.error.message);
+          alert(ctx.error.message);
         },
-});
-
-
-  }
-  const isPernding = form.formState.isSubmitting;
+      }
+    );
+  };
 
   return (
-    <div className="flex items-center justify-center bg-muted/40">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Create an Account</CardTitle>
-          <CardDescription>
+    <div className="flex items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-xl  p-6 shadow-lg">
+        {/* Header */}
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-semibold">Create an Account</h1>
+          <p className="text-sm text-gray-500">
             Sign up to get started
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              
-              {/* Email */}
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="you@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Password */}
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-            <FormField
-                control={form.control}
-                name="confirmpassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button type="submit" className="w-full" disabled={isPernding}>
-                Signup
-              </Button>
-                            <Button variant ="outline" type ="button" className="w-full" disabled={isPernding}>
-                              <Image src="/google.svg" alt="Google Icon" width={20} height={20} className="mr-2" />
-                              signUp with Google
-                            </Button>
-                            <Button variant ="outline"type="button" className="w-full" disabled={isPernding}>
-                              <Image src="/github.svg" alt="GitHub Icon" width={20} height={20} className="mr-2" />
-                              signUp with GitHub
-                            </Button>
-            </form>
-          </Form>
-
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/login" className="cursor-pointer text-primary hover:underline">
-              Login
-            </Link>
           </p>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Email */}
+          <div>
+            <label className="mb-1 block text-sm font-medium">Email</label>
+            <input
+              type="email"
+              placeholder="you@example.com"
+              {...register("email")}
+              className="w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black"
+            />
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-500">
+                {errors.email.message}
+              </p>
+            )}
+          </div>
+
+          {/* Password */}
+          <div>
+            <label className="mb-1 block text-sm font-medium">Password</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              {...register("password")}
+              className="w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black"
+            />
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-500">
+                {errors.password.message}
+              </p>
+            )}
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              {...register("confirmPassword")}
+              className="w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black"
+            />
+            {errors.confirmPassword && (
+              <p className="mt-1 text-sm text-red-500">
+                {errors.confirmPassword.message}
+              </p>
+            )}
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full rounded-lg bg-black py-2 font-medium text-white hover:bg-gray-900 disabled:opacity-50"
+          >
+            {isSubmitting ? "Creating account..." : "Sign up"}
+          </button>
+
+          {/* OAuth */}
+          <button
+            type="button"
+            disabled={isSubmitting}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border py-2 hover:bg-gray-50"
+          >
+            <Image src="/google.svg" alt="Google" width={18} height={18} />
+            Sign up with Google
+          </button>
+
+          <button
+            type="button"
+            disabled={isSubmitting}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border py-2 hover:bg-gray-50"
+          >
+            <Image src="/github.svg" alt="GitHub" width={18} height={18} />
+            Sign up with GitHub
+          </button>
+        </form>
+
+        {/* Footer */}
+        <p className="mt-6 text-center text-sm text-gray-500">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-black hover:underline">
+            Login
+          </Link>
+        </p>
+      </div>
     </div>
-  )
+  );
 }
