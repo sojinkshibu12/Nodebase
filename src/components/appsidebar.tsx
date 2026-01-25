@@ -68,7 +68,7 @@ export const AppSidebar = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed z-50 flex h-screen w-64 flex-col border-r bg-white transition-transform
+        className={`fixed z-50 flex h-screen w-64 shrink-0 flex-col border-r  bg-white transition-transform
         ${open ? "translate-x-0" : "-translate-x-full"}
         lg:static lg:translate-x-0`}
       >
