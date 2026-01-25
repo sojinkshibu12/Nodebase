@@ -1,10 +1,28 @@
 "use client"
-import { Divide } from "lucide-react";
 import { useCreateWorkflow, useSuspenceWorkflow } from "../hooks/use-workflow";
-import { EntityContainer, EntityHeader } from "@/components/entity-component";
+import { EntityContainer, EntityHeader, Entitypagination, Entitysearch } from "@/components/entity-component";
 import { useUpgradeModal } from "@/hooks/use-upgrade-modal";
+import { useRouter } from "next/navigation";
+import { workflowparamhook } from "../hooks/use-workflow-param";
+import { UseEntitySearch } from "../hooks/use-entitysearch";
 
 
+
+export const Workflowsearch =()=>{
+
+    const[params,setparams] = workflowparamhook()
+    const {searchvalue,onsearchchange} = UseEntitySearch({
+        params,
+        setparams
+    })
+    return(
+        <Entitysearch
+        value={searchvalue}
+        onchange={onsearchchange}
+        placeholder="search workflows"
+        />
+    );
+};
 export const WorkflowList = ()=>{
     const workflow = useSuspenceWorkflow();
 
@@ -14,20 +32,24 @@ export const WorkflowList = ()=>{
         </p>
 
 
-    )
+    );
 
-}
+};
 
 export const WorkflowHeader = ({disabled}:{disabled?:boolean})=>{
+    const router = useRouter();
     const createworkflow = useCreateWorkflow();
-    const {handlerror,modal} = useUpgradeModal()
+    const {handlerror,modal} = useUpgradeModal();
     const handlecreate= ()=>{
         createworkflow.mutate(undefined,{
+            onSuccess:(data)=>{
+                router.push(`/workflow/${data.id}`)
+            },
             onError:(error)=>{
                 handlerror(error)
             }
-        })
-    }
+        });
+    };
     return (
         <>
             {modal}
@@ -41,6 +63,20 @@ export const WorkflowHeader = ({disabled}:{disabled?:boolean})=>{
             
             />
         </>
+    );
+};
+
+export const WorkflowPagination=()=>{
+    const workflows = useSuspenceWorkflow();
+    const [params,setparams] = workflowparamhook();
+    return(
+        <Entitypagination
+        disabled={workflows.isFetching}
+        totalpage={workflows.data.totalpage}
+        page={workflows.data.page}
+        onPageChange={(page)=>setparams({...params,page})}
+        />
+
     )
 }
 
@@ -50,8 +86,8 @@ export const WorkflowsContainer = ({
     return (
         <EntityContainer
             header = {<WorkflowHeader/>}
-            search={<></>}
-            pagination={<></>}
+            search={<Workflowsearch/>}
+            pagination={<WorkflowPagination/>}
             >
                 {children}
         </EntityContainer>
