@@ -1,5 +1,7 @@
-import { Divide, PlusIcon, SearchIcon } from "lucide-react";
+import { useRemoveWorkflow } from "@/app/functionalities/workflows/servers/hooks/use-workflow";
+import { Divide, Loader2Icon, MoreVertical, PackageOpen, PlusIcon, SearchIcon, Trash2, TriangleAlertIcon, Workflow } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 
 type EntityHeaderProps = {
@@ -169,4 +171,180 @@ export const Entitypagination = ({
         </div>
     </div>
     )
+}
+
+interface Stateviewprop{
+    message?:string
+}
+
+
+
+export const Loadingentity = ({message}:Stateviewprop)=>{
+    return(
+        <div className="flex justify-center items-center flex-1 flex-col gap-y-4 ">
+            <Loader2Icon className="size-6 animate-spin text-primary"/>
+            {!!message&&(
+                <p className="text-sm text-muted-foreground">
+                    {message}
+                </p>
+            )}
+        
+        </div>
+    )
+}
+
+export const Errorentity = ({message}:Stateviewprop)=>{
+    return(
+        <div className="flex justify-center items-center flex-1 flex-col gap-y-4 ">
+            <TriangleAlertIcon className="size-6  text-primary"/>
+            {!!message&&(
+                <p className="text-sm text-muted-foreground">
+                    {message}
+                </p>
+            )}
+        
+        </div>
+    )
+}
+
+interface  Worklflowlist<T>{
+    items:T[],
+    renderitem:(item :T ,index:number)=>React.ReactNode
+    getKey?:(item:T,index:number) => string | number
+    emptyview?:React.ReactNode
+    classname:string
+}
+
+
+export function Workflowlistitems<T> ({items,renderitem,getKey,emptyview,classname}:Worklflowlist<T>){
+    if (items.length == 0 && emptyview ){
+        return(
+        <div className="flex justify-center items-center flex-1 ">
+            <div className="max-w-sm mx-auto">{emptyview}</div>
+        </div>)
+    }
+    return(
+        <div className="flex flex-col">
+            {items.map((item,index)=>(
+                <div key = {getKey ? getKey(item,index):index}>
+                    {renderitem(item,index)}
+                </div>
+            ))}
+        </div>
+    )
+}
+
+interface emptystateprop{
+    message:string,
+    onAdd?:()=>void
+}
+export const EmptyState = ({message,onAdd}:emptystateprop) => {
+  return (
+    <div className="flex items-center justify-center min-h-[40vh] flex-col">
+      
+        <h2 className="text-lg font-semibold text-gray-900">
+            <PackageOpen className = "w-20 h-20"/>
+          No items
+        </h2>
+
+        <p className="mt-2 text-sm text-gray-500">
+          {message}
+        </p>
+
+        <button
+          onClick={onAdd}
+          className="mt-6 inline-flex items-center justify-center rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          Add Item
+        </button>
+      
+    </div>
+  );
+};
+
+type WorkflowCardProps = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  
+};
+export default function WorkflowCard({
+  id,
+  name,
+  createdAt,
+  updatedAt,
+  
+  
+}: WorkflowCardProps) {
+  const [open, setOpen] = useState(false);
+  const removeworkflow = useRemoveWorkflow()
+  const handleremove = ()=>{
+    removeworkflow.mutate({id:id})
+  }
+
+  return (
+    <Link
+      href={`/workflow/${id}`}
+      className="relative flex items-start gap-4 rounded-xl border border-gray-200 bg-white p-4 transition  hover:shadow-sm mt-2"
+    >
+      {/* Icon */}
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+        <Workflow className="h-5 w-5" />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1">
+        <h3 className="text-sm font-semibold text-gray-900">
+          {name}
+        </h3>
+
+
+        <div className="mt-3 flex gap-4 text-xs text-gray-400">
+          <span>Created: {formatDate(createdAt)}</span>
+          <span>Updated: {formatDate(updatedAt)}</span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div
+        className="relative"
+        onClick={(e) => e.preventDefault()} // prevent Link navigation
+      >
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
+        >
+          <MoreVertical className="h-5 w-5" />
+        </button>
+
+        {open && (
+          <div className="absolute right-0 z-10 mt-2 w-32 rounded-lg border border-gray-200 bg-white shadow-md">
+            <button
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation();
+                setOpen(false);
+                handleremove()
+                
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+
+export function formatDate(date: string | Date) {
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(date));
 }

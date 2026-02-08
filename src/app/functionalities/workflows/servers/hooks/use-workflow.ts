@@ -35,3 +35,28 @@ export const useCreateWorkflow = ()=>{
         })
     )
 }
+
+export const useRemoveWorkflow = ()=>{
+    const querclient = useQueryClient()
+    const trpc= useTRPC();
+    const [params] = workflowparamhook()
+
+    return useMutation(
+        trpc.workflows.remove.mutationOptions({
+            onSuccess:(data)=>{
+                toast.success(`workflow "${data.name}" removed`);
+                // router.push(`/workflow/${data.id}`);
+                querclient.invalidateQueries(
+                    trpc.workflows.getmany.queryOptions(params),
+                );
+                querclient.invalidateQueries(
+                    trpc.workflows.getone.queryFilter({id:data.id}),
+                );
+
+          },
+            onError:(error)=>{
+                toast.error(`error removing workflow ${error.message}`)
+            }
+        })
+    )
+}

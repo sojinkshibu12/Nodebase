@@ -1,6 +1,6 @@
 "use client"
 import { useCreateWorkflow, useSuspenceWorkflow } from "../hooks/use-workflow";
-import { EntityContainer, EntityHeader, Entitypagination, Entitysearch } from "@/components/entity-component";
+import WorkflowCard, { EmptyState, EntityContainer, EntityHeader, Entitypagination, Entitysearch, Errorentity, Loadingentity, Workflowlistitems } from "@/components/entity-component";
 import { useUpgradeModal } from "@/hooks/use-upgrade-modal";
 import { useRouter } from "next/navigation";
 import { workflowparamhook } from "../hooks/use-workflow-param";
@@ -25,14 +25,39 @@ export const Workflowsearch =()=>{
 };
 export const WorkflowList = ()=>{
     const workflow = useSuspenceWorkflow();
+    const router = useRouter();
+    const createworkflow = useCreateWorkflow();
+    const {handlerror,modal} = useUpgradeModal();
+    const handlecreate= ()=>{
+        createworkflow.mutate(undefined,{
+            onSuccess:(data)=>{
+                router.push(`/workflow/${data.id}`)
+            },
+            onError:(error)=>{
+                handlerror(error)
+            }
+        });
+    };
 
-    return(
-        <p>
-            {JSON.stringify(workflow.data)}
-        </p>
+    return(<>
+    {modal}
+    <Workflowlistitems 
+    items={workflow.data.items}
+    getKey={(workflow)=>workflow.id}
+    renderitem = {(workflow)=> 
+        <WorkflowCard 
+        id= {`${workflow.id}`}
+        name={`${workflow.name}`}
+        createdAt={`${workflow.createdAt}`}
+        updatedAt={`${workflow.updatedAt}`}
+        
 
-
-    );
+        />
+    }
+    emptyview = {<EmptyState message="Not created workflow..."  onAdd={handlecreate}/>}
+    classname=""
+    />
+    </>)
 
 };
 
@@ -92,4 +117,13 @@ export const WorkflowsContainer = ({
                 {children}
         </EntityContainer>
     )
+}
+
+export const Workflowloader = ()=>{
+    return(
+    <Loadingentity message="Loading..." />)
+}
+export const WorkflowError = ()=>{
+    return(
+    <Errorentity message="Error..." />)
 }
