@@ -9,7 +9,8 @@
 * 🟢 You can import this file directly.
 */
 
+export const Nodetype = {
+  INITIAL: 'INITIAL'
+} as const
 
-
-// This file is empty because there are no enums in the schema.
-export {}
+export type Nodetype = (typeof Nodetype)[keyof typeof Nodetype]
