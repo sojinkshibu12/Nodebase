@@ -3,6 +3,8 @@ import prisma from "@/lib/db"
 import { createTRPCRouter,protectedprocedure ,premiumprocedure} from "@/trpc/init"
 import {z} from "zod"
 import { PAGINATION } from "@/config/constants"
+import { Nodetype } from "@/generated/prisma/enums"
+import { Edge, Node, Position } from "@xyflow/react"
 
 
 
@@ -11,7 +13,14 @@ export const workflowsrouter = createTRPCRouter({
         return prisma.workflow.create({
             data:{
                 name:generateSlug(3),
-                userId:ctx.auth.user.id
+                userId:ctx.auth.user.id,
+                node:{
+                   create:{
+                    type:Nodetype.INITIAL,
+                    position:{x:0,y:0},
+                    name:Nodetype.INITIAL
+                   } 
+                }
             }
         });
     }),
@@ -43,10 +52,32 @@ export const workflowsrouter = createTRPCRouter({
 
     getone:protectedprocedure
     .input(z.object({id:z.string()}))
-    .query(({ctx,input})=>{
-        return prisma.workflow.findUniqueOrThrow({
+    .query(async ({ctx,input})=>{
+        const workflow = await prisma.workflow.findUniqueOrThrow({
             where:{id:input.id,userId:ctx.auth.user.id},
+            include:{node:true,connections:true}
         })
+
+        const nodes:Node[]=workflow.node.map((node)=>({
+            id:node.id,
+            type :node.type,
+            position:node.position as {x :number,y:number},
+            data:(node.data as Record<string,unknown>)|| {}
+        }))
+        const edges:Edge[]=workflow.connections.map((edge)=>({
+            id:edge.id,
+            source:edge.fromnodeid,
+            target:edge.tonodeid,
+            sourceHandle:edge.fromoutput,
+            targetHandle:edge.toinput
+        }))
+
+        return{
+            id:workflow.id,
+            name:workflow.name,
+            nodes,
+            edges
+        };
     }),
 
     getmany:protectedprocedure
@@ -78,12 +109,12 @@ export const workflowsrouter = createTRPCRouter({
 
             }),
             prisma.workflow.count({
-            where:{
-                userId:ctx.auth.user.id,
-                name:{
-                    contains:search,
-                    mode:"insensitive"
-            }
+                where:{
+                    userId:ctx.auth.user.id,
+                    name:{
+                        contains:search,
+                        mode:"insensitive"
+                    }
                 }
             }),
         ])
