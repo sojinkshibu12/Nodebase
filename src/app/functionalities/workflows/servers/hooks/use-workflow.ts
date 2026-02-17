@@ -91,3 +91,40 @@ export const useUpdateWorkflow = ()=>{
         })
     )
 }
+
+export const useAddWorkflowNode = ()=>{
+    const trpc = useTRPC();
+
+    return useMutation(
+        trpc.workflows.addnode.mutationOptions({
+            onError:(error)=>{
+                toast.error(`${error.message}`)
+            }
+        })
+    )
+}
+
+export const useUpdateWorkflowNode = ()=>{
+    const trpc = useTRPC();
+
+    return useMutation(
+        trpc.workflows.updatenode.mutationOptions({
+            onError:(error)=>{
+                toast.error(` ${error.message}`)
+                console.log(error.message)
+            }
+        })
+    )
+}
+
+export const useDeleteWorkflowNode = ()=>{
+    const trpc = useTRPC();
+
+    return useMutation(
+        trpc.workflows.deletenode.mutationOptions({
+            onError:(error)=>{
+                toast.error(`error deleting node ${error.message}`)
+            }
+        })
+    )
+}
