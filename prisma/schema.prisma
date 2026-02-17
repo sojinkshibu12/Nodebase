@@ -89,6 +89,9 @@ model Workflow{
 }
 enum Nodetype{
   INITIAL
+  EXECUTION
+  MANUALLTRIGGER
+  HTTPREQUEST
 }
 model Node{
   id String @id @default(cuid())
