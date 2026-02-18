@@ -21,7 +21,7 @@ export const Initialnode = memo((prop:NodeProps)=>{
                 
             >
                 <div className="flex justify-center items-center cursor-pointer">
-                    <PlusIcon className="size-4"/>
+                    <PlusIcon className="size-3.5"/>
                 </div>
             </PlaceholderNode>
         </Workflownode>

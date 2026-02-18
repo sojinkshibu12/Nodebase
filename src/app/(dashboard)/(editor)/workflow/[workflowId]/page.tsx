@@ -1,9 +1,8 @@
 import { prefetchoneworkflows } from "@/app/functionalities/workflows/servers/prefetch";
 import { requireAuth } from "@/lib/auth-utils"
-import { HydrateClient, prefetch } from "@/trpc/server";
+import { HydrateClient } from "@/trpc/server";
 import { ErrorBoundary } from "react-error-boundary";
 import { Suspense } from "react";
-import { useoneSuspenceWorkflow } from "@/app/functionalities/workflows/servers/hooks/use-workflow";
 import { Editorcontent, EditorError, EditorLoading } from "@/components/editorcomponents/workflowidcontent";
 import { EditorHeader } from "@/components/editorcomponents/editorheader";
 
@@ -25,7 +24,7 @@ const Page = async ({ params }: PageProps) => {
           
           <main className="flex flex-col flex-1 min-h-0">
             <EditorHeader workflowid = {workflowId}/>
-            <Editorcontent workflowid = {workflowId}/>
+            <Editorcontent key={workflowId} workflowid = {workflowId}/>
           </main>
           </Suspense>
         </ErrorBoundary>

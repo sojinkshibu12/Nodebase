@@ -18,7 +18,7 @@ export const PlaceholderNode = forwardRef<HTMLDivElement,PlaceholderNodeProps>((
   void ref;
   return (
     <BaseNode
-      className="bg-card size-20 border-dashed border-gray-400 p-0 text-center text-gray-400 shadow-none cursor-pointer hover:border-gray-500 hover:bg-gray-50"
+      className="bg-card size-14 border-dashed border-gray-400 p-0 text-center text-gray-400 shadow-none cursor-pointer hover:border-gray-500 hover:bg-gray-50"
       onClick={onclick}
     >
       <div className="flex size-full items-center justify-center">{children}</div>
