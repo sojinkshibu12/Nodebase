@@ -18,9 +18,9 @@ export const ManualTriggerNode = memo((props: NodeProps) => {
       description="Runs this workflow manually."
       ondelete={() => onDeleteNode?.(props.id)}
     >
-      <BaseNode className="size-20 rounded-l-3xl rounded-r-md p-0">
+      <BaseNode className="size-14 rounded-l-2xl rounded-r-md p-0">
         <div className="flex size-full items-center justify-center text-foreground">
-          <PlayIcon className="size-4" />
+          <PlayIcon className="size-3.5" />
         </div>
       </BaseNode>
       <Handle type="source" position={Position.Right} />

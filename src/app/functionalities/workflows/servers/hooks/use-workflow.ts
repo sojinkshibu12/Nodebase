@@ -128,3 +128,27 @@ export const useDeleteWorkflowNode = ()=>{
         })
     )
 }
+
+export const useUpdateWorkflowNodePosition = ()=>{
+    const trpc = useTRPC();
+
+    return useMutation(
+        trpc.workflows.updatenodeposition.mutationOptions({
+            onError:(error)=>{
+                toast.error(`error updating node position ${error.message}`)
+            }
+        })
+    )
+}
+
+export const useSetWorkflowConnections = ()=>{
+    const trpc = useTRPC();
+
+    return useMutation(
+        trpc.workflows.setconnections.mutationOptions({
+            onError:(error)=>{
+                toast.error(`error updating edges ${error.message}`)
+            }
+        })
+    )
+}

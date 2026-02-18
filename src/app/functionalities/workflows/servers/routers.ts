@@ -41,6 +41,12 @@ const isInvalidNodeTypeError = (error: unknown) => {
 };
 
 const toJsonInput = (value: unknown) => value as Prisma.InputJsonValue;
+const edgeInputSchema = z.object({
+    source: z.string(),
+    target: z.string(),
+    sourceHandle: z.string().nullable().optional(),
+    targetHandle: z.string().nullable().optional(),
+});
 
 const createNodeWithFallbackType = async (params: {
     workflowId: string;
@@ -271,6 +277,102 @@ export const workflowsrouter = createTRPCRouter({
             data: (node.data as Record<string, unknown>) || {},
         };
     }),
+    updatenodeposition: protectedprocedure
+    .input(z.object({
+        workflowId: z.string(),
+        nodeId: z.string(),
+        position: z.object({
+            x: z.number(),
+            y: z.number(),
+        }),
+    }))
+    .mutation(async ({ctx, input})=>{
+        await prisma.workflow.findUniqueOrThrow({
+            where: {
+                id: input.workflowId,
+                userId: ctx.auth.user.id,
+            },
+        });
+
+        const node = await prisma.node.update({
+            where: {
+                id: input.nodeId,
+                workflowId: input.workflowId,
+            },
+            data: {
+                position: input.position,
+            },
+        });
+
+        return {
+            id: node.id,
+            position: node.position as {x:number,y:number},
+        };
+    }),
+    setconnections: protectedprocedure
+    .input(z.object({
+        workflowId: z.string(),
+        edges: z.array(edgeInputSchema),
+    }))
+    .mutation(async ({ctx, input})=>{
+        await prisma.workflow.findUniqueOrThrow({
+            where: {
+                id: input.workflowId,
+                userId: ctx.auth.user.id,
+            },
+        });
+
+        const uniqueNodeIds = Array.from(
+            new Set(
+                input.edges.flatMap((edge) => [edge.source, edge.target]),
+            ),
+        );
+
+        if (uniqueNodeIds.length > 0) {
+            const nodesCount = await prisma.node.count({
+                where: {
+                    workflowId: input.workflowId,
+                    id: {
+                        in: uniqueNodeIds,
+                    },
+                },
+            });
+
+            if (nodesCount !== uniqueNodeIds.length) {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "One or more edge nodes do not exist in this workflow",
+                });
+            }
+        }
+
+        await prisma.$transaction(async (tx) => {
+            await tx.connection.deleteMany({
+                where: {
+                    workflowId: input.workflowId,
+                },
+            });
+
+            if (input.edges.length === 0) {
+                return;
+            }
+
+            await tx.connection.createMany({
+                data: input.edges.map((edge) => ({
+                    workflowId: input.workflowId,
+                    fromnodeid: edge.source,
+                    tonodeid: edge.target,
+                    fromoutput: edge.sourceHandle || "main",
+                    toinput: edge.targetHandle || "main",
+                })),
+                skipDuplicates: true,
+            });
+        });
+
+        return {
+            count: input.edges.length,
+        };
+    }),
     deletenode: protectedprocedure
     .input(z.object({
         workflowId: z.string(),
@@ -357,8 +459,8 @@ export const workflowsrouter = createTRPCRouter({
             id:edge.id,
             source:edge.fromnodeid,
             target:edge.tonodeid,
-            sourceHandle:edge.fromoutput,
-            targetHandle:edge.toinput
+            sourceHandle: edge.fromoutput === "main" ? null : edge.fromoutput,
+            targetHandle: edge.toinput === "main" ? null : edge.toinput
         }))
 
         return{
