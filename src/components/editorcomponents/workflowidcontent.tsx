@@ -3,6 +3,7 @@
 import {
   useAddWorkflowNode,
   useDeleteWorkflowNode,
+  useExecuteWorkflow,
   useoneSuspenceWorkflow,
   useSetWorkflowConnections,
   useUpdateWorkflowNodePosition,
@@ -17,7 +18,10 @@ import { AddnodeButton } from "./addbutton";
 import { Nodetype } from "@/generated/prisma/enums";
 import { NodePickerSidebar } from "./node-picker-sidebar";
 import { DeletableEdge } from "./deletable-edge";
-import { TrashIcon } from "lucide-react";
+import { PlayIcon, TrashIcon } from "lucide-react";
+import { sortNodesTopologically } from "@/lib/topological-sort";
+import type { NodeExecutionStatus } from "./node-execution-state";
+import { getCatalogNodeDefaults, isCatalogNodeType } from "@/config/node-catalog";
 
 
 
@@ -74,7 +78,6 @@ const edgeTypes = {
   deletable: DeletableEdge,
 } as const;
 
-
 export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
     const {data} = useoneSuspenceWorkflow(workflowid)
     const addNodeMutation = useAddWorkflowNode();
@@ -82,11 +85,13 @@ export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
     const updateNodePositionMutation = useUpdateWorkflowNodePosition();
     const deleteNodeMutation = useDeleteWorkflowNode();
     const setConnectionsMutation = useSetWorkflowConnections();
+    const executeWorkflowMutation = useExecuteWorkflow();
 
     const [nodes, setNodes] = useState<Node[]>(data.nodes);
     const [edges, setEdges] = useState<Edge[]>(data.edges as Edge[]);
     const [pickerOpen, setPickerOpen] = useState(false);
     const [replaceNodeId, setReplaceNodeId] = useState<string | null>(null);
+    const [nodeExecutionStatuses, setNodeExecutionStatuses] = useState<Record<string, NodeExecutionStatus>>({});
  
     const onNodesChange = useCallback(
         (changes:NodeChange[]) =>
@@ -185,6 +190,51 @@ export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
         return nextEdges;
       });
     }, [persistEdges]);
+    const handleExecuteWorkflow = useCallback(async () => {
+      setNodeExecutionStatuses({});
+
+      const sortedNodeIds = sortNodesTopologically(
+        nodes.map((node) => ({ id: node.id, type: String(node.type ?? ""), data: node.data })),
+        edges.map((edge) => ({
+          source: edge.source,
+          target: edge.target,
+        })),
+      ).map((node) => node.id);
+
+      if (sortedNodeIds.length > 0) {
+        setNodeExecutionStatuses(
+          Object.fromEntries(
+            sortedNodeIds.map((nodeId) => [nodeId, "executing" as const]),
+          ),
+        );
+      }
+
+      try {
+        await setConnectionsMutation.mutateAsync({
+          workflowId: workflowid,
+          edges: edges.map((edge) => ({
+            source: edge.source,
+            target: edge.target,
+            sourceHandle: edge.sourceHandle ?? null,
+            targetHandle: edge.targetHandle ?? null,
+          })),
+        });
+
+        const execution = await executeWorkflowMutation.mutateAsync({
+          workflowId: workflowid,
+        });
+
+        const nextStatuses: Record<string, NodeExecutionStatus> = {};
+        for (const result of execution.results) {
+          if (result.status === "success" || result.status === "error") {
+            nextStatuses[result.nodeId] = result.status;
+          }
+        }
+        setNodeExecutionStatuses(nextStatuses);
+      } catch {
+        setNodeExecutionStatuses({});
+      }
+    }, [edges, executeWorkflowMutation, nodes, setConnectionsMutation, workflowid]);
     const onNodeDragStop = useCallback((_event: unknown, node: Node) => {
       const currentNode = nodes.find((item) => item.id === node.id);
       if (!currentNode) {
@@ -199,11 +249,39 @@ export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
     }, [nodes, updateNodePositionMutation, workflowid]);
 
     const getNodeDefaultData = useCallback((type: Nodetype) => {
-      if (type === Nodetype.HTTPREQUEST) {
+      if (isCatalogNodeType(type)) {
+        return getCatalogNodeDefaults(type);
+      }
+
+      if (type === Nodetype.SCHEDULE) {
         return {
-          method: "GET",
-          url: "https://api.example.com",
-          body: '{\n  "example": "value"\n}',
+          scheduleType: "cron",
+          cronExpression: "0 9 * * 1",
+          intervalValue: 5,
+          intervalUnit: "minutes",
+          timezone: "UTC",
+        };
+      }
+
+      if (type === Nodetype.IFSWITCH) {
+        return {
+          mode: "if",
+          leftOperand: "input.status",
+          operator: "equals",
+          rightOperand: "success",
+          switchValue: "input.type",
+          defaultLabel: "Default",
+          cases: [
+            { label: "Pending", value: "pending" },
+            { label: "Active", value: "active" },
+          ],
+        };
+      }
+
+      if (type === Nodetype.MERGE) {
+        return {
+          strategy: "wait_all",
+          joinField: "user_id",
         };
       }
 
@@ -227,69 +305,183 @@ export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
 
       const uniqueNodeIds = Array.from(new Set(nodeIds));
       const uniqueNodeIdsSet = new Set(uniqueNodeIds);
-      let initialNodeResult: {
-        id: string;
-        type: Nodetype;
-        position: { x: number; y: number };
-        data: Record<string, unknown>;
-      } | null = null;
+      const previousNodes = nodes;
+      const previousEdges = edges;
+      const nextNodes = previousNodes.filter(
+        (node) => !uniqueNodeIdsSet.has(node.id),
+      );
+      const nextEdges = previousEdges.filter(
+        (edge) =>
+          !uniqueNodeIdsSet.has(edge.source) &&
+          !uniqueNodeIdsSet.has(edge.target),
+      );
+      const optimisticInitialNode =
+        nextNodes.length === 0
+          ? {
+              id: `temp-initial-${crypto.randomUUID()}`,
+              type: Nodetype.INITIAL,
+              position: { x: 0, y: 0 },
+              data: {},
+            }
+          : null;
+
+      setNodes(optimisticInitialNode ? [optimisticInitialNode] : nextNodes);
+      setEdges(nextEdges);
+      persistEdges(nextEdges);
 
       try {
-        for (const nodeId of uniqueNodeIds) {
-          const result = await deleteNodeMutation.mutateAsync({
-            workflowId: workflowid,
-            nodeId,
-          });
+        const results = await Promise.all(
+          uniqueNodeIds.map((nodeId) =>
+            deleteNodeMutation.mutateAsync({
+              workflowId: workflowid,
+              nodeId,
+            }),
+          ),
+        );
 
-          if (result.initialNode) {
-            initialNodeResult = result.initialNode;
-            break;
-          }
+        const initialNodeResult =
+          results.find((result) => result.initialNode)?.initialNode ?? null;
+
+        if (initialNodeResult) {
+          setNodes([
+            {
+              id: initialNodeResult.id,
+              type: initialNodeResult.type,
+              position: initialNodeResult.position,
+              data: initialNodeResult.data,
+            },
+          ]);
+          setEdges([]);
+          persistEdges([]);
         }
       } catch {
+        setNodes(previousNodes);
+        setEdges(previousEdges);
+        persistEdges(previousEdges);
         return;
       }
-
-      if (initialNodeResult) {
-        setNodes([
-          {
-            id: initialNodeResult.id,
-            type: initialNodeResult.type,
-            position: initialNodeResult.position,
-            data: initialNodeResult.data,
-          },
-        ]);
-        setEdges([]);
-        persistEdges([]);
-        return;
-      }
-
-      setNodes((current) =>
-        current.filter((node) => !uniqueNodeIdsSet.has(node.id)),
-      );
-      setEdges((current) => {
-        const nextEdges = current.filter(
-          (edge) =>
-            !uniqueNodeIdsSet.has(edge.source) &&
-            !uniqueNodeIdsSet.has(edge.target),
-        );
-        persistEdges(nextEdges);
-        return nextEdges;
-      });
-    }, [deleteNodeMutation, persistEdges, workflowid]);
+    }, [deleteNodeMutation, edges, nodes, persistEdges, workflowid]);
 
     const handleDeleteNode = useCallback((nodeId: string) => {
       void handleDeleteNodes([nodeId]);
     }, [handleDeleteNodes]);
-    const handleUpdateHttpRequestNode = useCallback((
+    const handleUpdateScheduleNode = useCallback((
       nodeId: string,
-      payload: { method: string; url: string; body?: string },
+      payload: {
+        scheduleType: "cron" | "interval";
+        cronExpression: string;
+        intervalValue: number;
+        intervalUnit: "minutes" | "hours" | "days";
+        timezone: string;
+      },
     ) => {
       updateNodeMutation.mutate(
         {
           workflowId: workflowid,
           nodeId,
-          type: Nodetype.HTTPREQUEST,
+          type: Nodetype.SCHEDULE,
+          data: payload,
+        },
+        {
+          onSuccess: (updatedNode) => {
+            setNodes((current) =>
+              current.map((node) => {
+                if (node.id !== nodeId) {
+                  return node;
+                }
+
+                return {
+                  ...node,
+                  type: updatedNode.type,
+                  data: updatedNode.data,
+                };
+              }),
+            );
+          },
+        },
+      );
+    }, [updateNodeMutation, workflowid]);
+    const handleUpdateIfSwitchNode = useCallback((
+      nodeId: string,
+      payload: {
+        mode: "if" | "switch";
+        leftOperand: string;
+        operator: string;
+        rightOperand: string;
+        switchValue: string;
+        defaultLabel: string;
+        cases: Array<{ label: string; value: string }>;
+      },
+    ) => {
+      updateNodeMutation.mutate(
+        {
+          workflowId: workflowid,
+          nodeId,
+          type: Nodetype.IFSWITCH,
+          data: payload,
+        },
+        {
+          onSuccess: (updatedNode) => {
+            setNodes((current) =>
+              current.map((node) => {
+                if (node.id !== nodeId) {
+                  return node;
+                }
+
+                return {
+                  ...node,
+                  type: updatedNode.type,
+                  data: updatedNode.data,
+                };
+              }),
+            );
+          },
+        },
+      );
+    }, [updateNodeMutation, workflowid]);
+    const handleUpdateMergeNode = useCallback((
+      nodeId: string,
+      payload: {
+        strategy: "wait_all" | "wait_any" | "by_index" | "by_key" | "append";
+        joinField: string;
+      },
+    ) => {
+      updateNodeMutation.mutate(
+        {
+          workflowId: workflowid,
+          nodeId,
+          type: Nodetype.MERGE,
+          data: payload,
+        },
+        {
+          onSuccess: (updatedNode) => {
+            setNodes((current) =>
+              current.map((node) => {
+                if (node.id !== nodeId) {
+                  return node;
+                }
+
+                return {
+                  ...node,
+                  type: updatedNode.type,
+                  data: updatedNode.data,
+                };
+              }),
+            );
+          },
+        },
+      );
+    }, [updateNodeMutation, workflowid]);
+    const handleUpdateCatalogNode = useCallback((
+      nodeId: string,
+      type: Nodetype,
+      payload: Record<string, unknown>,
+    ) => {
+      updateNodeMutation.mutate(
+        {
+          workflowId: workflowid,
+          nodeId,
+          type,
           data: payload,
         },
         {
@@ -321,6 +513,21 @@ export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
       const targetNodeId = replaceNodeId ?? singleInitialNodeId;
 
       if (targetNodeId) {
+        const previousNodes = nodes;
+        setNodes((current) =>
+          current.map((node) => {
+            if (node.id !== targetNodeId) {
+              return node;
+            }
+
+            return {
+              ...node,
+              type,
+              data: nodeData,
+            };
+          }),
+        );
+
         updateNodeMutation.mutate(
           {
             workflowId: workflowid,
@@ -344,10 +551,24 @@ export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
                 }),
               );
             },
+            onError: () => {
+              setNodes(previousNodes);
+            },
           },
         );
       } else {
         const nextPosition = findAvailablePosition(nodes);
+        const tempNodeId = `temp-${crypto.randomUUID()}`;
+
+        setNodes((current) => [
+          ...current,
+          {
+            id: tempNodeId,
+            type,
+            position: nextPosition,
+            data: nodeData,
+          },
+        ]);
 
         addNodeMutation.mutate(
           {
@@ -359,7 +580,7 @@ export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
           {
             onSuccess: (createdNode) => {
               setNodes((current) => [
-                ...current,
+                ...current.filter((node) => node.id !== tempNodeId),
                 {
                   id: createdNode.id,
                   type: createdNode.type,
@@ -367,6 +588,11 @@ export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
                   data: createdNode.data,
                 },
               ]);
+            },
+            onError: () => {
+              setNodes((current) =>
+                current.filter((node) => node.id !== tempNodeId),
+              );
             },
           },
         );
@@ -387,6 +613,7 @@ export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
           ...(node.data as Record<string, unknown>),
           onOpenPicker: openPickerFromInitial,
           onDeleteNode: handleDeleteNode,
+          executionStatus: nodeExecutionStatuses[node.id],
         },
       };
     }).map((node) => {
@@ -399,7 +626,11 @@ export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
         data: {
           ...(node.data as Record<string, unknown>),
           onDeleteNode: handleDeleteNode,
-          onUpdateHttpRequestNode: handleUpdateHttpRequestNode,
+          onUpdateScheduleNode: handleUpdateScheduleNode,
+          onUpdateIfSwitchNode: handleUpdateIfSwitchNode,
+          onUpdateMergeNode: handleUpdateMergeNode,
+          onUpdateCatalogNode: handleUpdateCatalogNode,
+          executionStatus: nodeExecutionStatuses[node.id],
         },
       };
     });
@@ -415,6 +646,15 @@ export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
     const selectedNodeIds = nodes
       .filter((node) => node.selected)
       .map((node) => node.id);
+    const hasManualTriggerNode = nodes.some(
+      (node) =>
+        node.type === Nodetype.MANUALLTRIGGER ||
+        node.type === Nodetype.EXECUTION ||
+        node.type === Nodetype.SCHEDULE ||
+        node.type === "MANUALLTRIGGER" ||
+        node.type === "EXECUTION" ||
+        node.type === "SCHEDULE",
+    );
     
 
     return(
@@ -460,6 +700,21 @@ export const Editorcontent = ({workflowid}:Editorcontentprops)=>{
             <AddnodeButton onClick={openPickerFromToolbar}/>
           </div>
         </Panel>
+        {hasManualTriggerNode && (
+          <Panel position="bottom-center">
+            <button
+              type="button"
+              className="inline-flex h-10 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => {
+                void handleExecuteWorkflow();
+              }}
+              disabled={executeWorkflowMutation.isPending || setConnectionsMutation.isPending}
+            >
+              <PlayIcon size={16} />
+              {executeWorkflowMutation.isPending ? "Executing..." : "Execute Workflow"}
+            </button>
+          </Panel>
+        )}
 
       </ReactFlow>
       <NodePickerSidebar

@@ -6,11 +6,15 @@ import { PlayIcon } from "lucide-react";
 
 import { BaseNode } from "@/components/base-node";
 import { Workflownode } from "./workflownode";
+import { getNodeExecutionClassName, type NodeExecutionStatus } from "./node-execution-state";
 
 export const ManualTriggerNode = memo((props: NodeProps) => {
-  const onDeleteNode =
-    (props.data as { onDeleteNode?: (nodeId: string) => void } | undefined)
-      ?.onDeleteNode;
+  const nodeData = (props.data as {
+    onDeleteNode?: (nodeId: string) => void;
+    executionStatus?: NodeExecutionStatus;
+  } | undefined);
+  const onDeleteNode = nodeData?.onDeleteNode;
+  const executionStatus = nodeData?.executionStatus;
 
   return (
     <Workflownode
@@ -18,7 +22,7 @@ export const ManualTriggerNode = memo((props: NodeProps) => {
       description="Runs this workflow manually."
       ondelete={() => onDeleteNode?.(props.id)}
     >
-      <BaseNode className="size-14 rounded-l-2xl rounded-r-md p-0">
+      <BaseNode className={`size-14 rounded-l-2xl rounded-r-md p-0 ${getNodeExecutionClassName(executionStatus)}`}>
         <div className="flex size-full items-center justify-center text-foreground">
           <PlayIcon className="size-3.5" />
         </div>
