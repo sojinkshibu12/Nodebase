@@ -1,12 +1,10 @@
 "use client";
 
 import {
-  CreditCardIcon,
   FolderOpenIcon,
   HistoryIcon,
   KeyIcon,
   LogOutIcon,
-  StarIcon,
   MenuIcon,
   XIcon,
 } from "lucide-react";
@@ -15,7 +13,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
-import { useHasActiveSubscription } from "@/app/functionalities/subscrpition/hooks/use-subscription";
 
 /* ------------------ Menu ------------------ */
 const menuItems = [
@@ -43,7 +40,6 @@ const menuItems = [
 
 /* ------------------ Component ------------------ */
 export const AppSidebar = () => {
-  const {hasActivesubscription,isLoading} = useHasActiveSubscription()
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -120,19 +116,6 @@ export const AppSidebar = () => {
 
         {/* Footer */}
         <div className="border-t p-2 space-y-1">
-          {!hasActivesubscription && !isLoading && (
-          <button className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm text-gray-600 hover:bg-gray-100"
-          onClick={()=>authClient.checkout({slug:"Nodebase-pro"})}
-          >
-            <StarIcon className="h-4 w-4" />
-            Upgrade to Pro
-          </button>
-          )}
-          <button className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm text-gray-600 hover:bg-gray-100">
-            <CreditCardIcon className="h-4 w-4" />
-            Billing portal
-          </button>
-
           <button
             onClick={() =>
               authClient.signOut({

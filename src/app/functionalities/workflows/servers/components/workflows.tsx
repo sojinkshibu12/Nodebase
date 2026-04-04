@@ -1,7 +1,6 @@
 "use client"
 import { useCreateWorkflow, useSuspenceWorkflow } from "../hooks/use-workflow";
 import WorkflowCard, { EmptyState, EntityContainer, EntityHeader, Entitypagination, Entitysearch, Errorentity, Loadingentity, Workflowlistitems } from "@/components/entity-component";
-import { useUpgradeModal } from "@/hooks/use-upgrade-modal";
 import { useRouter } from "next/navigation";
 import { workflowparamhook } from "../hooks/use-workflow-param";
 import { UseEntitySearch } from "../hooks/use-entitysearch";
@@ -27,20 +26,15 @@ export const WorkflowList = ()=>{
     const workflow = useSuspenceWorkflow();
     const router = useRouter();
     const createworkflow = useCreateWorkflow();
-    const {handlerror,modal} = useUpgradeModal();
     const handlecreate= ()=>{
         createworkflow.mutate(undefined,{
             onSuccess:(data)=>{
                 router.push(`/workflow/${data.id}`)
-            },
-            onError:(error)=>{
-                handlerror(error)
             }
         });
     };
 
     return(<>
-    {modal}
     <Workflowlistitems 
     items={workflow.data.items}
     getKey={(workflow)=>workflow.id}
@@ -64,20 +58,15 @@ export const WorkflowList = ()=>{
 export const WorkflowHeader = ({disabled}:{disabled?:boolean})=>{
     const router = useRouter();
     const createworkflow = useCreateWorkflow();
-    const {handlerror,modal} = useUpgradeModal();
     const handlecreate= ()=>{
         createworkflow.mutate(undefined,{
             onSuccess:(data)=>{
                 router.push(`/workflow/${data.id}`)
-            },
-            onError:(error)=>{
-                handlerror(error)
             }
         });
     };
     return (
         <>
-            {modal}
             <EntityHeader 
                 title="workflows"
                 descrpition="create and manage your workflow"

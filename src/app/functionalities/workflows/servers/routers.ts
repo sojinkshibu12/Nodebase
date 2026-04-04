@@ -1,24 +1,23 @@
 import {generateSlug} from "random-word-slugs"
 import prisma from "@/lib/db"
-import { createTRPCRouter,protectedprocedure ,premiumprocedure} from "@/trpc/init"
+import { createTRPCRouter,protectedprocedure } from "@/trpc/init"
 import {z} from "zod"
 import { PAGINATION } from "@/config/constants"
 import { Nodetype } from "@/generated/prisma/enums"
 import type { Prisma } from "@/generated/prisma/client"
 import { Edge, Node } from "@xyflow/react"
 import { TRPCError } from "@trpc/server"
+import { inngest } from "@/inngest/client"
+import { waitForWorkflowExecutionResult } from "@/lib/server/workflow-execution-channel"
 
-const nodeTypeInputSchema = z.enum([
-    "INITIAL",
-    "EXECUTION",
-    "MANUALLTRIGGER",
-    "HTTPREQUEST",
-]);
+const nodeTypeInputSchema = z.enum(
+    Object.values(Nodetype) as [Nodetype, ...Nodetype[]],
+);
 
-const MANUAL_TRIGGER_TYPES = ["EXECUTION", "MANUALLTRIGGER"] as const;
+const TRIGGER_NODE_TYPES = ["EXECUTION", "MANUALLTRIGGER", "SCHEDULE"] as const;
 const isManualTriggerType = (type: z.infer<typeof nodeTypeInputSchema>) =>
-    MANUAL_TRIGGER_TYPES.includes(
-        type as (typeof MANUAL_TRIGGER_TYPES)[number],
+    TRIGGER_NODE_TYPES.includes(
+        type as (typeof TRIGGER_NODE_TYPES)[number],
     );
 
 const toPrismaNodeType = (
@@ -135,7 +134,7 @@ const updateNodeWithFallbackType = async (params: {
 
 
 export const workflowsrouter = createTRPCRouter({
-    create :premiumprocedure.mutation(({ctx})=>{
+    create :protectedprocedure.mutation(({ctx})=>{
         return prisma.workflow.create({
             data:{
                 name:generateSlug(3),
@@ -198,7 +197,7 @@ export const workflowsrouter = createTRPCRouter({
                 where: {
                     workflowId: input.workflowId,
                     type: {
-                        in: [Nodetype.EXECUTION, Nodetype.MANUALLTRIGGER],
+                        in: [Nodetype.EXECUTION, Nodetype.MANUALLTRIGGER, Nodetype.SCHEDULE],
                     },
                 },
                 select: { id: true },
@@ -207,7 +206,7 @@ export const workflowsrouter = createTRPCRouter({
             if (existingManualTrigger) {
                 throw new TRPCError({
                     code: "CONFLICT",
-                    message: "Only one manual trigger is allowed per workflow",
+                    message: "Only one trigger node is allowed per workflow",
                 });
             }
         }
@@ -249,7 +248,7 @@ export const workflowsrouter = createTRPCRouter({
                         not: input.nodeId,
                     },
                     type: {
-                        in: [Nodetype.EXECUTION, Nodetype.MANUALLTRIGGER],
+                        in: [Nodetype.EXECUTION, Nodetype.MANUALLTRIGGER, Nodetype.SCHEDULE],
                     },
                 },
                 select: { id: true },
@@ -258,7 +257,7 @@ export const workflowsrouter = createTRPCRouter({
             if (existingManualTrigger) {
                 throw new TRPCError({
                     code: "CONFLICT",
-                    message: "Only one manual trigger is allowed per workflow",
+                    message: "Only one trigger node is allowed per workflow",
                 });
             }
         }
@@ -439,6 +438,61 @@ export const workflowsrouter = createTRPCRouter({
             id: input.nodeId,
             initialNode: null,
         };
+    }),
+    execute: protectedprocedure
+    .input(z.object({
+        workflowId: z.string(),
+    }))
+    .mutation(async ({ctx, input}) => {
+        const manualTrigger = await prisma.node.findFirst({
+            where: {
+                workflowId: input.workflowId,
+                type: {
+                    in: [Nodetype.EXECUTION, Nodetype.MANUALLTRIGGER, Nodetype.SCHEDULE],
+                },
+            },
+            select: {
+                id: true,
+            },
+        });
+
+        if (!manualTrigger) {
+            throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: "A trigger node is required to execute this workflow",
+            });
+        }
+
+        const requestId = crypto.randomUUID();
+
+        await inngest.send({
+            name: "workflow/execute.requested",
+            data: {
+                workflowId: input.workflowId,
+                userId: ctx.auth.user.id,
+                requestId,
+            },
+        });
+
+        try {
+            return await waitForWorkflowExecutionResult(requestId);
+        } catch (error) {
+            if (error instanceof Error && error.message === "Workflow not found for execution") {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: error.message,
+                });
+            }
+
+            if (error instanceof Error && error.message.includes("Timed out")) {
+                throw new TRPCError({
+                    code: "TIMEOUT",
+                    message: error.message,
+                });
+            }
+
+            throw error;
+        }
     }),
 
     getone:protectedprocedure

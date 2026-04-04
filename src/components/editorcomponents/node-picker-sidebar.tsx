@@ -2,6 +2,7 @@
 
 import { XIcon } from "lucide-react";
 
+import { NODE_PICKER_OPTIONS } from "@/config/node-catalog";
 import { Nodetype } from "@/generated/prisma/enums";
 
 interface NodePickerSidebarProps {
@@ -10,19 +11,6 @@ interface NodePickerSidebarProps {
   onSelect: (type: Nodetype) => void;
 }
 
-const NODE_OPTIONS = [
-  {
-    type: Nodetype.MANUALLTRIGGER,
-    title: "Manual Trigger",
-    description: "Starts the workflow manually when you click run.",
-  },
-  {
-    type: Nodetype.HTTPREQUEST,
-    title: "HTTP Request",
-    description: "Calls an external API endpoint and passes the response.",
-  },
-] as const;
-
 export const NodePickerSidebar = ({
   open,
   onClose,
@@ -30,7 +18,7 @@ export const NodePickerSidebar = ({
 }: NodePickerSidebarProps) => {
   return (
     <aside
-      className={`absolute right-0 top-0 z-20 h-full w-80 border-l bg-background shadow-lg transition-transform ${
+      className={`absolute right-0 top-0 z-20 flex h-full w-80 flex-col border-l bg-background shadow-lg transition-transform ${
         open ? "translate-x-0" : "translate-x-full"
       }`}
     >
@@ -45,14 +33,17 @@ export const NodePickerSidebar = ({
         </button>
       </div>
 
-      <div className="space-y-2 p-3">
-        {NODE_OPTIONS.map((option) => (
+      <div className="flex-1 space-y-2 overflow-y-auto p-3">
+        {NODE_PICKER_OPTIONS.map((option) => (
           <button
             key={option.type}
             className="w-full rounded-md border p-3 text-left transition hover:bg-accent"
             onClick={() => onSelect(option.type)}
             type="button"
           >
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+              {option.category}
+            </p>
             <p className="text-sm font-medium">{option.title}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {option.description}

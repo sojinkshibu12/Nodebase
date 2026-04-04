@@ -4,10 +4,17 @@ import { PlusIcon } from "lucide-react";
 import { memo } from "react";
 import { PlaceholderNode } from "../placeholder-node";
 import { Workflownode } from "./workflownode";
+import { getNodeExecutionClassName, type NodeExecutionStatus } from "./node-execution-state";
 
 export const Initialnode = memo((prop:NodeProps)=>{
-    const onOpenPicker = (prop.data as {onOpenPicker?: (nodeId: string) => void} | undefined)?.onOpenPicker;
-    const onDeleteNode = (prop.data as {onDeleteNode?: (nodeId: string) => void} | undefined)?.onDeleteNode;
+    const nodeData = (prop.data as {
+        onOpenPicker?: (nodeId: string) => void;
+        onDeleteNode?: (nodeId: string) => void;
+        executionStatus?: NodeExecutionStatus;
+    } | undefined);
+    const onOpenPicker = nodeData?.onOpenPicker;
+    const onDeleteNode = nodeData?.onDeleteNode;
+    const executionStatus = nodeData?.executionStatus;
 
     return(
         <Workflownode
@@ -17,6 +24,7 @@ export const Initialnode = memo((prop:NodeProps)=>{
         >
             <PlaceholderNode
                 {...prop}
+                className={getNodeExecutionClassName(executionStatus)}
                 onclick={()=>onOpenPicker?.(prop.id)}
                 
             >

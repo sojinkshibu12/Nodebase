@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 
 import { BaseNode } from "@/components/base-node";
 import { Workflownode } from "./workflownode";
+import { getNodeExecutionClassName, type NodeExecutionStatus } from "./node-execution-state";
 
 export const HttpRequestNode = memo((props: NodeProps) => {
   const nodeData = (props.data ?? {}) as {
@@ -18,6 +19,7 @@ export const HttpRequestNode = memo((props: NodeProps) => {
     method?: string;
     url?: string;
     body?: string;
+    executionStatus?: NodeExecutionStatus;
   };
   const onDeleteNode =
     nodeData?.onDeleteNode;
@@ -27,7 +29,9 @@ export const HttpRequestNode = memo((props: NodeProps) => {
     typeof nodeData.method === "string" ? nodeData.method.toUpperCase() : "GET",
   );
   const [url, setUrl] = useState(
-    typeof nodeData.url === "string" ? nodeData.url : "https://api.example.com",
+    typeof nodeData.url === "string" && nodeData.url.trim().length > 0
+      ? nodeData.url
+      : "not configured",
   );
   const [body, setBody] = useState(
     typeof nodeData.body === "string" ? nodeData.body : '{\n  "example": "value"\n}',
@@ -37,7 +41,8 @@ export const HttpRequestNode = memo((props: NodeProps) => {
   const configuredUrl =
     typeof nodeData.url === "string" && nodeData.url.trim().length > 0
       ? nodeData.url.trim()
-      : "https://api.example.com";
+      : "not configured";
+  const executionStatus = nodeData.executionStatus;
 
   return (
     <>
@@ -52,9 +57,9 @@ export const HttpRequestNode = memo((props: NodeProps) => {
               : "GET",
           );
           setUrl(
-            typeof nodeData.url === "string"
+            typeof nodeData.url === "string" && nodeData.url.trim().length > 0
               ? nodeData.url
-              : "https://api.example.com",
+              : "not configured",
           );
           setBody(
             typeof nodeData.body === "string"
@@ -64,7 +69,7 @@ export const HttpRequestNode = memo((props: NodeProps) => {
           setOpenSettings(true);
         }}
       >
-        <BaseNode className="size-14 p-0">
+        <BaseNode className={`size-14 p-0 ${getNodeExecutionClassName(executionStatus)}`}>
           <div className="flex size-full items-center justify-center text-foreground">
             <GlobeIcon className="size-3.5" />
           </div>
@@ -104,8 +109,8 @@ export const HttpRequestNode = memo((props: NodeProps) => {
                   <input
                     id={`url-${props.id}`}
                     className="h-9 rounded-md border bg-background px-2 text-sm"
-                    type="url"
-                    placeholder="https://api.example.com/resource"
+                    type="text"
+                    placeholder="not configured"
                     value={url}
                     onChange={(event) => setUrl(event.target.value)}
                   />
